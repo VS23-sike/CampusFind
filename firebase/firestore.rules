@@ -1,0 +1,56 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+
+    function isAdminUser() {
+      return isAuthenticated()
+        && request.auth.token.role == 'admin';
+    }
+
+    // Users: real-time presence mirror only.
+    // Primary user data is stored in PostgreSQL.
+    match /users/{userId} {
+      allow read: if isOwner(userId) || isAdminUser();
+
+      // Permit users to create/update only their own presence document.
+      allow create, update: if isOwner(userId)
+        && request.resource.data.keys().hasOnly([
+          'is_online',
+          'last_seen'
+        ])
+        && request.resource.data.keys().hasAll([
+          'is_online',
+          'last_seen'
+        ])
+        && request.resource.data.is_online is bool
+        && request.resource.data.last_seen is timestamp;
+
+      // Users cannot delete presence documents directly.
+      allow delete: if false;
+    }
+
+    // Push notification tokens.
+    match /fcm_tokens/{userId} {
+      allow read: if isOwner(userId) || isAdminUser();
+
+      // Restrict users to their own token document.
+      allow create, update: if isOwner(userId);
+
+      allow delete: if isOwner(userId) || isAdminUser();
+    }
+
+    // Deny every other collection and document by default.
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

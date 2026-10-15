@@ -1,0 +1,28 @@
+backend/uploads/
+# Python
+backend/.venv/
+backend/venv/
+**/__pycache__/
+*.py[cod]
+
+# Environment secrets
+.env
+**/.env
+!.env.example
+!**/.env.example
+firebase-credentials.json
+**/firebase-credentials.json
+*.pem
+*.key
+*service-account*
+
+# Flutter generated files
+**/.dart_tool/
+**/build/
+**/.flutter-plugins
+**/.flutter-plugins-dependencies
+
+# IDE and logs
+.vscode/
+.idea/
+*.log

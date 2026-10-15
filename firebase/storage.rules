@@ -1,0 +1,115 @@
+
+rules_version = '2';
+
+service firebase.storage {
+  match /b/{bucket}/o {
+
+    // ─── Helper Functions ─────────────────────────────────────────
+
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return request.auth.uid == userId;
+    }
+
+    function isValidImageType() {
+      return request.resource != null
+        && (
+          request.resource.contentType == 'image/jpeg' ||
+          request.resource.contentType == 'image/jpg' ||
+          request.resource.contentType == 'image/png' ||
+          request.resource.contentType == 'image/webp'
+        );
+    }
+
+    function isValidFileSize() {
+      return request.resource != null
+        && request.resource.size <= 10 * 1024 * 1024;
+    }
+
+    function isAdminUser() {
+      return request.auth.token.role == 'admin';
+    }
+
+    // ─── Profile Photos ───────────────────────────────────────────
+
+    match /profiles/{userId}/{fileName} {
+
+      // Authenticated users can view profile photos
+      allow read: if isAuthenticated();
+
+      // Only the owner can upload or update valid images
+      allow create, update: if isAuthenticated()
+        && isOwner(userId)
+        && isValidImageType()
+        && isValidFileSize();
+
+      // Owner or admin can delete
+      allow delete: if isAuthenticated()
+        && (isOwner(userId) || isAdminUser());
+    }
+
+    // ─── Lost Item Images ─────────────────────────────────────────
+
+    match /lost-items/{userId}/{itemId}/{fileName} {
+
+      // Authenticated users can view lost-item images
+      allow read: if isAuthenticated();
+
+      // Only the owner can upload or update valid images
+      allow create, update: if isAuthenticated()
+        && isOwner(userId)
+        && isValidImageType()
+        && isValidFileSize();
+
+      // Owner or admin can delete
+      allow delete: if isAuthenticated()
+        && (isOwner(userId) || isAdminUser());
+    }
+
+    // ─── Found Item Images ────────────────────────────────────────
+
+    match /found-items/{userId}/{itemId}/{fileName} {
+
+      // Authenticated users can view found-item images
+      allow read: if isAuthenticated();
+
+      // Only the finder can upload or update valid images
+      allow create, update: if isAuthenticated()
+        && isOwner(userId)
+        && isValidImageType()
+        && isValidFileSize();
+
+      // Owner or admin can delete
+      allow delete: if isAuthenticated()
+        && (isOwner(userId) || isAdminUser());
+    }
+
+    // ─── Claim Evidence Photos ────────────────────────────────────
+
+    match /claims/{userId}/{claimId}/{fileName} {
+
+      // Only the uploader or an admin can view claim evidence
+      allow read: if isAuthenticated()
+        && (isOwner(userId) || isAdminUser());
+
+      // Only the claimant can upload or update valid images
+      allow create, update: if isAuthenticated()
+        && isOwner(userId)
+        && isValidImageType()
+        && isValidFileSize();
+
+      // Owner or admin can delete
+      allow delete: if isAuthenticated()
+        && (isOwner(userId) || isAdminUser());
+    }
+
+    // ─── Deny All Other Paths ─────────────────────────────────────
+
+    match /{allPaths=**} {
+      allow read, write: if false;
+    }
+  }
+}
